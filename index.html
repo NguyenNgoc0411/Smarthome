@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weboscoket MQTT</title>
+    <link rel="stylesheet" href="./main.css">
+  =
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.js"
+        integrity="sha512-6LKCH7i2+zMNczKuCT9ciXgFCKFp3MevWTZUXDlk7azIYZ2wF5LRsrwZqO7Flt00enUI+HwzzT5uhOvy6MNPiA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"
+        integrity="sha512-7U4rRB8aGAHGVad3u2jiC7GA5/1YhQcQjxKeaVms/bT66i3LVBMRcBI9KwABNWnxOSwulkuSXxZLGuyfvo7V1A=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+
+
+<body>
+    <div class="container">
+        <div id="temp_box">
+            <div class="box1">
+                <div class="text_box1">
+                    <h1>Nhiệt độ</h1>
+                    <div class="icon_box">
+                        <i class="fa-solid fa-temperature-quarter icon"></i>
+                        <span id='temp'>-</span>°C
+                        
+                    </div>
+                </div>
+                <div class="time">
+                    <span id="showtime">
+
+                    </span>
+
+                </div>
+            </div>
+            <div stylen style="width: 550px; height: 250px">
+                <canvas id="myChart"></canvas>
+            </div>
+        </div>
+        <div class="hum_box">
+            <div class="box1">
+                <div class="text_box1">
+                    <h1>Độ ẩm</h1>
+                    <div class="icon_hum">
+                        <i class="fa-solid fa-temperature-low iconhum"></i>
+                        <span id='hum'>-</span>%
+
+                    </div>
+
+                </div>
+                <div class="time">
+                    <span id="showtimehum">
+
+                    </span>
+
+                </div>
+            </div>
+            <div stylen style="width: 550px; height: 250px">
+                <canvas id="humChart"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+        <div class="trangthai_box">
+            
+
+            <h1>Trạng thái đèn: <span id='message'>-</span></h1>
+            <h1>Trạng thái dàn phơi: <span id='message2'>-</span></h1>
+            <h1>Trạng thái cửa ra vào: <span id='message3'>-</span></h1>
+        </div>
+    
+    <div class="button_box">
+        <button type='button' id='BTN_1' onclick="button_1_pressed()" style="--clr:#b8d8ba">
+            <span >Bật đèn</span>
+            <i></i>
+        </button>
+        <button type='button' id='BTN_2' style="--clr:#e84732">
+            <span>Tắt đèn</span>
+            <i></i>
+        </button>
+        <button type='button' id="BTN_3" style="--clr:#faa275">
+            <span>Đóng cửa</span>
+            <i></i>
+        </button>
+        <button type='button' id="BTN_4" style="--clr:#429052">
+            <span>Mở cửa</span>
+            <i></i>
+        </button>
+        <button type='button' id="BTN_5" style="--clr:#66ccff">
+            <span>Mở rèm phơi</span>
+            <i></i>
+        </button>
+        <button type='button' id="BTN_6" style="--clr:#ef959d">
+            <span>Đóng rèm phơi</span>
+            <i></i>
+        </button>
+    </div>
+    
+
+
+
+
+
+</body>
+<script>
+    const clientId = 'mqttjs_' + Math.random().toString(16).substr(2, 8)
+    const host = 'ws://broker.hivemq.com:8000/mqtt'
+    const options = {
+        keepalive: 60,
+        clientId: clientId,
+        protocolId: 'MQTT',
+        protocolVersion: 4,
+        clean: true,
+        reconnectPeriod: 1000,
+        connectTimeout: 30 * 1000,
+        will: {
+            topic: 'WillMsg',
+            payload: 'Connection Closed abnormally..!',
+            qos: 0,
+            retain: false
+        },
+    }
+    console.log('Connecting mqtt client')
+    const client = mqtt.connect(host, options)
+    client.on('error', (err) => {
+        console.log('Connection error: ', err)
+        client.end()
+    })
+    client.on('reconnect', () => {
+        console.log('Reconnecting...')
+    })
+    client.on('connect', () => {
+        console.log(`Client connected: ${clientId}`)
+        // Subscribe
+        client.subscribe('/PTIT_Test/vinh/temp', { qos: 0 })
+        client.subscribe('/PTIT_Test/vinh/hum', { qos: 0 })
+        client.subscribe('/PTIT_Test/vinh/turnLED', { qos: 0 })
+        client.subscribe('/PTIT_Test/vinh/door', { qos: 0 })
+        client.subscribe('/PTIT_Test/vinh/drying_curtain', { qos: 0 })
+    })
+    // Publish
+    client.publish('/PTIT_Test/vinh/temp', 'Test message ...', { qos: 0, retain: false })
+    client.publish('/PTIT_Test/vinh/hum', 'Test message ...', { qos: 0, retain: false })
+    // Receive
+    client.on('message', (topic, message, packet) => {
+        console.log(`Received Message: ${message.toString()} On topic: ${topic}`)
+        if (topic == '/PTIT_Test/vinh/temp') {
+            document.getElementById('temp').innerHTML = message.toString();
+        }
+        if (topic == '/PTIT_Test/vinh/hum') {
+            document.getElementById('hum').innerHTML = message.toString();
+        }
+        if (topic == "/PTIT_Test/vinh/turnLED") {
+            document.getElementById('message').innerHTML = message.toString();
+        }
+        if (topic == "/PTIT_Test/vinh/drying_curtain") {
+            document.getElementById('message2').innerHTML = message.toString();
+        }
+        if (topic == "/PTIT_Test/vinh/door") {
+            document.getElementById('message3').innerHTML = message.toString();
+        }
+    })
+
+    document.getElementById('BTN_1').addEventListener('click', button_1_pressed);
+    document.getElementById('BTN_2').addEventListener('click', button_2_pressed);
+    document.getElementById('BTN_3').addEventListener('click', button_3_pressed);
+    document.getElementById('BTN_4').addEventListener('click', button_4_pressed);
+    document.getElementById('BTN_5').addEventListener('click', button_5_pressed);
+    document.getElementById('BTN_6').addEventListener('click', button_6_pressed);
+    function button_1_pressed() {
+        //Publish command to turn on led 
+        console.log('Bật đèn')
+        client.publish('/PTIT_Test/vinh/turnLED', 'ON')
+    }
+    function button_2_pressed() {
+        console.log('Tắt đèn')
+        //Publish command to turn off led 
+        client.publish('/PTIT_Test/vinh/turnLED', 'OFF')
+    }
+    function button_3_pressed() {
+        console.log('Đóng cửa')
+        client.publish('/PTIT_Test/vinh/door', 'CLOSE')
+    }
+    function button_4_pressed() {
+        console.log('Mở cửa')
+        client.publish('/PTIT_Test/vinh/door', 'OPEN')
+    }
+    function button_5_pressed() {
+        console.log('Mở rèm phơi')
+        client.publish('/PTIT_Test/vinh/drying_curtain', 'OPEN')
+    }
+    function button_6_pressed() {
+        console.log('Đóng rèm phơi')
+        client.publish('/PTIT_Test/vinh/drying_curtain', 'CLOSE')
+    }
+
+
+
+
+    const down=(ctx,value) => ctx.p0.parsed.y > ctx.p1.parsed.y ? value : undefined;
+    const naik=(ctx,value) => ctx.p0.parsed.y < ctx.p1.parsed.y ? value : undefined;
+    const stagmate=(ctx,value) => ctx.p0.parsed.y == ctx.p1.parsed.y ? value : undefined;
+   
+    var data = {
+        labels: [0],
+        datasets: [{
+            label: 'Nhiệt độ',
+            data: [0],
+            borderColor: 'rgb(189,195,199)',
+            lineTension: 0.5,
+            segment: {
+                borderColor: ctx => down(ctx,"#e8a49c") || naik(ctx,"#7eabd0") || stagmate(ctx,"#fdf3f4")
+
+            }
+            
+
+        }]
+    };
+    
+    var option = {
+        maintainAspectRatio: true,
+        
+        scales: {
+            x: {
+               
+                ticks: {
+                    color: 'white' // Màu chữ của dải giá trị trục x
+                }
+                
+                
+                
+            },
+           
+            y: {
+                ticks: {
+                    color: 'white', // Màu chữ của dải giá trị trục y
+                    
+                    stepSize: 10, // Bước giữa các giá trị
+                    beginAtZero: true, // Bắt đầu từ giá trị 0
+                    max: 40, // Giá trị tối đa
+                    min:0,
+                    suggestedMin: 0, // Giá trị tối thiểu trên trục y
+                suggestedMax: 40, // Giá trị tối đa trên trục y
+            
+                }
+            }
+        },
+
+        plugins: {
+            legend: {
+                labels: {
+                    color: 'white' // Màu chữ của label
+                }
+            }
+        }
+        
+
+    };
+    var config = {
+        type: 'line',
+        data: data,
+        options: option,
+    };
+
+    var myChart = new Chart(document.getElementById('myChart'),
+        config);
+    var data1 = {
+        labels: [0],
+        datasets: [{
+            label: 'Độ ẩm',
+            data: [0],
+            backgroundColor :
+            ['rgba(252,217,196,0.7)'],
+            borderColor: 'white',
+            borderWidth:2,
+
+
+        }]
+
+    };
+    var option1 = {
+        maintainAspectRatio: true,
+        
+        scales: {
+            x: {
+                
+                ticks: {
+                    color: 'white' // Màu chữ của dải giá trị trục x
+                }
+                
+                
+                
+            },
+           
+            y: {
+                categoryPercentage: 1.0,
+                ticks: {
+                    
+                    color: 'white', // Màu chữ của dải giá trị trục y
+                    
+                    stepSize: 5, // Bước giữa các giá trị
+                    beginAtZero: true, // Bắt đầu từ giá trị 0
+                    max: 40, // Giá trị tối đa
+                    min:0,
+                    suggestedMin: 0, // Giá trị tối thiểu trên trục y
+                suggestedMax: 40, // Giá trị tối đa trên trục y
+            
+                }
+            }
+        },
+
+        plugins: {
+            legend: {
+                labels: {
+                    color: 'white' // Màu chữ của label
+                }
+            }
+        }
+        
+
+    };
+    
+
+
+    const config1 = {
+        type: 'bar',
+        data: data1,
+        options:option1
+    };
+    const char = document.getElementById('humChart');
+    var humChart = new Chart(char, config1);
+    
+    var value;
+        var valuehum;
+    
+
+    window.setInterval(mycallback, 2000);
+
+    function mycallback() {
+        var now = new Date();
+       
+       
+
+        client.on('message', (topic, message, packet) => {
+        console.log(`Received Message: ${message.toString()} On topic: ${topic}`)
+        if (topic == '/PTIT_Test/vinh/temp') {
+            value=parseFloat(message);
+        }
+        if (topic == '/PTIT_Test/vinh/hum') {
+            valuehum=parseFloat(message);
+        }
+        
+    })
+
+
+        
+        if (data.labels.length >= 20) {
+            data.labels.shift();
+            data.datasets[0].data.shift();
+
+        }
+        if (data1.labels.length >= 10) {
+            data1.labels.shift();
+            data1.datasets[0].data.shift();
+
+
+        }
+        //  if (test == 0) {
+            now = now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds();
+                   
+                    data1.labels.push(now);
+                    data1.datasets[0].data.push(valuehum);
+                
+        // if (testtemp == 0) {
+                   
+                    
+                    data.labels.push(now);
+                    data.datasets[0].data.push(value);
+                //     console.log('true');
+                
+                myChart.update();
+                humChart.update();
+                
+
+
+    }
+    // Hàm để lấy và hiển thị ngày giờ
+    function showDateTime() {
+        var now = new Date();
+        var formattedDateTime = now.toLocaleString('en-US', { timeZone: 'UTC' })
+        var x = formattedDateTime.split(',');
+        var time1 = x[0] + " " + now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds();
+        document.getElementById('showtime').innerHTML = time1;
+        document.getElementById('showtimehum').innerHTML = time1;
+    }
+
+    // Gọi hàm mỗi giây để cập nhật thời gian
+    setInterval(showDateTime, 2000);
+
+    // Gọi hàm một lần để hiển thị thời gian lúc ban đầu
+    showDateTime();
+</script>
+
+
+</html>
